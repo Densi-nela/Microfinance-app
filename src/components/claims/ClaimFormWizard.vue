@@ -183,61 +183,70 @@ onMounted(() => {
   loadDraft();
 });
 
-const loadSubmittedClaims = () => {
-  const claimsJson = localStorage.getItem('submitted_claims');
-  if (claimsJson) {
-    try {
-      submittedClaimsList.value = JSON.parse(claimsJson);
-    } catch (e) {
-      console.error('Failed to parse submitted claims from localStorage', e);
-      submittedClaimsList.value = [];
-    }
-  } else {
-    // Inject mock historical claims if empty, to make the app feel alive and complete!
-    const mockClaims = [
-      {
-        id: 'mock-1',
-        reference: 'CLM-591048-H',
-        policyNumber: 'POL-992014',
-        claimType: 'health',
-        claimantName: 'Sarah Jenkins',
-        claimantEmail: 'sarah.j@example.com',
-        claimantPhone: '+1 (555) 381-0021',
-        submittedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
-        status: 'paid',
-        healthDetails: {
-          hospitalName: 'Mercy Medical Center',
-          treatmentDate: '2026-08-15',
-          expensesAmount: '850.00',
-          medicalDiagnosis: 'Outpatient surgery for minor wrist tendon repair, post-op physiotherapy.'
-        },
-        estimates: { health: 600.00 },
-        supportingDocuments: [{ name: 'medical_bill_850.pdf', size: 245100 }]
-      },
-      {
-        id: 'mock-2',
-        reference: 'CLM-382914-M',
-        policyNumber: 'POL-104928',
-        claimType: 'motor',
-        claimantName: 'John Doe',
-        claimantEmail: 'john.doe@example.com',
-        claimantPhone: '+1 (555) 902-1481',
-        submittedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-        status: 'under_review',
-        motorDetails: {
-          vehicleRegNo: '7XYZ89',
-          accidentDate: '2026-09-15',
-          accidentLocation: 'Cross Street Junction, NY',
-          damageSeverity: 'moderate',
-          policeReportFiled: 'yes',
-          repairEstimate: '2400.00'
-        },
-        estimates: { motor: 1720.00 },
-        supportingDocuments: [{ name: 'accident_photo_front.jpg', size: 1250000 }, { name: 'police_report.pdf', size: 540000 }]
+const loadSubmittedClaims = async () => {
+  try {
+    const res = await fetch('http://localhost:8080/api/claims');
+    if (!res.ok) throw new Error('API failed');
+    const data = await res.json();
+    submittedClaimsList.value = data;
+    console.log('Successfully loaded claims from live Spring Boot backend!');
+  } catch (error) {
+    console.warn('Backend server down, falling back to LocalStorage simulation.', error);
+    const claimsJson = localStorage.getItem('submitted_claims');
+    if (claimsJson) {
+      try {
+        submittedClaimsList.value = JSON.parse(claimsJson);
+      } catch (e) {
+        console.error('Failed to parse submitted claims from localStorage', e);
+        submittedClaimsList.value = [];
       }
-    ];
-    submittedClaimsList.value = mockClaims;
-    localStorage.setItem('submitted_claims', JSON.stringify(mockClaims));
+    } else {
+      // Inject mock historical claims if empty, to make the app feel alive and complete!
+      const mockClaims = [
+        {
+          id: 'mock-1',
+          reference: 'CLM-591048-H',
+          policyNumber: 'POL-992014',
+          claimType: 'health',
+          claimantName: 'Sarah Jenkins',
+          claimantEmail: 'sarah.j@example.com',
+          claimantPhone: '+1 (555) 381-0021',
+          submittedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+          status: 'paid',
+          healthDetails: {
+            hospitalName: 'Mercy Medical Center',
+            treatmentDate: '2026-08-15',
+            expensesAmount: '850.00',
+            medicalDiagnosis: 'Outpatient surgery for minor wrist tendon repair, post-op physiotherapy.'
+          },
+          estimates: { health: 600.00 },
+          supportingDocuments: [{ name: 'medical_bill_850.pdf', size: 245100 }]
+        },
+        {
+          id: 'mock-2',
+          reference: 'CLM-382914-M',
+          policyNumber: 'POL-104928',
+          claimType: 'motor',
+          claimantName: 'John Doe',
+          claimantEmail: 'john.doe@example.com',
+          claimantPhone: '+1 (555) 902-1481',
+          submittedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+          status: 'under_review',
+          motorDetails: {
+            vehicleRegNo: '7XYZ89',
+            accidentDate: '2026-09-15',
+            accidentLocation: 'Cross Street Junction, NY',
+            damageSeverity: 'moderate',
+            policeReportFiled: 'yes',
+            repairEstimate: '2400.00'
+          },
+          estimates: { motor: 1720.00 },
+          supportingDocuments: [{ name: 'accident_photo_front.jpg', size: 1250000 }, { name: 'police_report.pdf', size: 540000 }]
+        }
+      ];
+      submittedClaimsList.value = mockClaims;
+      localStorage.setItem('submitted_claims', JSON.stringify(mockClaims));
+    }
   }
 };
 
@@ -442,46 +451,81 @@ const prevStep = () => {
   }
 };
 
-// Simulated submission
-const submitClaim = () => {
+// Simulated/Live submission
+const submitClaim = async () => {
   isSubmitting.value = true;
   
-  // Create randomized reference number e.g., CLM-398410-A
-  const randNum = Math.floor(100000 + Math.random() * 900000);
-  const claimSuffixChar = formData.claimType.charAt(0).toUpperCase();
-  const refNum = `CLM-${randNum}-${claimSuffixChar}`;
-  
-  // Wait 3.5 seconds to allow StepReviewSubmit animated timeline to finish loading
-  setTimeout(() => {
-    isSubmitting.value = false;
-    submissionSuccess.value = true;
-    claimReference.value = refNum;
+  const payload = {
+    policyNumber: formData.policyNumber,
+    claimType: formData.claimType,
+    claimantName: formData.claimantName,
+    claimantEmail: formData.claimantEmail,
+    claimantPhone: formData.claimantPhone,
+    healthDetails: formData.healthDetails,
+    motorDetails: formData.motorDetails,
+    generalDetails: formData.generalDetails,
+    supportingDocuments: formData.supportingDocuments,
+    estimates: formData.estimates
+  };
 
-    // Build saved claim object
-    const newClaim = {
-      id: 'claim-' + Date.now(),
-      reference: refNum,
-      policyNumber: formData.policyNumber,
-      claimType: formData.claimType,
-      claimantName: formData.claimantName,
-      claimantEmail: formData.claimantEmail,
-      claimantPhone: formData.claimantPhone,
-      submittedAt: new Date().toISOString(),
-      status: 'pending_review',
-      healthDetails: { ...formData.healthDetails },
-      motorDetails: { ...formData.motorDetails },
-      generalDetails: { ...formData.generalDetails },
-      supportingDocuments: [...formData.supportingDocuments],
-      estimates: { ...formData.estimates }
-    };
-
-    // Save to list
-    submittedClaimsList.value.unshift(newClaim);
-    localStorage.setItem('submitted_claims', JSON.stringify(submittedClaimsList.value));
+  try {
+    const res = await fetch('http://localhost:8080/api/claims', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
     
-    // Clear draft storage
-    localStorage.removeItem('claim_form_draft');
-  }, 3600);
+    if (!res.ok) throw new Error('API post failed');
+    const savedClaim = await res.json();
+    
+    // Delay slightly to let the gorgeous StepReviewSubmit timeline simulation finish
+    setTimeout(() => {
+      isSubmitting.value = false;
+      submissionSuccess.value = true;
+      claimReference.value = savedClaim.reference;
+
+      // Add to list and clear draft
+      submittedClaimsList.value.unshift(savedClaim);
+      localStorage.removeItem('claim_form_draft');
+      console.log('Successfully saved new claim to live Spring Boot database!', savedClaim);
+    }, 3600);
+  } catch (error) {
+    console.warn('Backend server down during submission, falling back to LocalStorage simulation.', error);
+    
+    // Fallback simulated submission logic
+    const randNum = Math.floor(100000 + Math.random() * 900000);
+    const claimSuffixChar = formData.claimType.charAt(0).toUpperCase();
+    const refNum = `CLM-${randNum}-${claimSuffixChar}`;
+    
+    setTimeout(() => {
+      isSubmitting.value = false;
+      submissionSuccess.value = true;
+      claimReference.value = refNum;
+
+      const newClaim = {
+        id: 'claim-' + Date.now(),
+        reference: refNum,
+        policyNumber: formData.policyNumber,
+        claimType: formData.claimType,
+        claimantName: formData.claimantName,
+        claimantEmail: formData.claimantEmail,
+        claimantPhone: formData.claimantPhone,
+        submittedAt: new Date().toISOString(),
+        status: 'pending_review',
+        healthDetails: { ...formData.healthDetails },
+        motorDetails: { ...formData.motorDetails },
+        generalDetails: { ...formData.generalDetails },
+        supportingDocuments: [...formData.supportingDocuments],
+        estimates: { ...formData.estimates }
+      };
+
+      submittedClaimsList.value.unshift(newClaim);
+      localStorage.setItem('submitted_claims', JSON.stringify(submittedClaimsList.value));
+      localStorage.removeItem('claim_form_draft');
+    }, 3600);
+  }
 };
 
 const resetForm = () => {
