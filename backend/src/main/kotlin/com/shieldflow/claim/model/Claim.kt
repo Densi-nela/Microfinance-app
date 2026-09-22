@@ -15,6 +15,9 @@ class Claim(
     @Column(name = "reference", unique = true, nullable = false)
     var reference: String = "",
 
+    @Column(name = "user_id", nullable = true)
+    var userId: Long? = null,
+
     @Column(name = "policy_number", nullable = false)
     var policyNumber: String = "",
 

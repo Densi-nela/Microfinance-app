@@ -1,5 +1,6 @@
 <template>
-  <div class="portal-layout">
+  <!-- Authenticated Layout -->
+  <div v-if="authStore.isAuthenticated.value" class="portal-layout">
     <!-- Branded Header -->
     <header class="portal-header">
       <div class="header-content">
@@ -12,17 +13,21 @@
         </div>
         
         <div class="user-profile">
-          <div class="profile-avatar">JD</div>
+          <div class="profile-avatar">{{ userInitials }}</div>
           <div class="profile-info">
-            <span class="profile-name">John Doe</span>
-            <span class="profile-role">Premium Member</span>
+            <span class="profile-name">{{ authStore.currentUser.value?.fullName }}</span>
+            <span class="profile-role capitalize-text">{{ authStore.userRole.value?.toLowerCase() }} portal</span>
           </div>
+          <!-- Logout Button -->
+          <button class="btn-logout" @click="handleLogout" title="Sign Out">
+            🚪 Logout
+          </button>
         </div>
       </div>
     </header>
 
-    <!-- Subheader Portal Metrics -->
-    <section class="portal-metrics-bar">
+    <!-- Subheader Portal Metrics (Shown only to Customers) -->
+    <section v-if="authStore.userRole.value === 'CUSTOMER'" class="portal-metrics-bar">
       <div class="metrics-content">
         <div class="metric-card">
           <span class="metric-icon">📜</span>
@@ -51,8 +56,9 @@
     <!-- Main Content Area -->
     <main class="portal-main">
       <div class="container">
-        <!-- Claim Form Wizard Container -->
-        <ClaimFormWizard />
+        <!-- Render Adjuster Queue if Admin, Stepper Wizard if Customer -->
+        <AdminDashboard v-if="authStore.userRole.value === 'ADMIN'" />
+        <ClaimFormWizard v-else />
       </div>
     </main>
 
@@ -80,10 +86,40 @@
       </div>
     </footer>
   </div>
+
+  <!-- Unauthenticated Login/Register Screen -->
+  <div v-else class="portal-layout auth-layout-wrapper">
+    <div class="auth-header-standalone">
+      <span class="header-logo">🛡️ ShieldFlow</span>
+    </div>
+    <LoginRegister />
+  </div>
 </template>
 
 <script setup>
+import { computed } from 'vue';
+import { authStore } from './components/claims/authStore';
+import LoginRegister from './components/claims/LoginRegister.vue';
 import ClaimFormWizard from './components/claims/ClaimFormWizard.vue';
+import AdminDashboard from './components/claims/AdminDashboard.vue';
+
+const userInitials = computed(() => {
+  const name = authStore.currentUser.value?.fullName;
+  if (!name) return 'U';
+  const parts = name.split(' ');
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return parts[0].substring(0, 2).toUpperCase();
+});
+
+const handleLogout = () => {
+  if (confirm('Are you sure you want to sign out of the ShieldFlow Portal?')) {
+    authStore.logout();
+    // Refresh to guarantee clean state reload
+    window.location.reload();
+  }
+};
 </script>
 
 <style>
@@ -97,6 +133,8 @@ import ClaimFormWizard from './components/claims/ClaimFormWizard.vue';
 
 body {
   background-color: #f7fafc !important; /* Force nice light grey background for portal feel */
+  margin: 0;
+  padding: 0;
 }
 
 /* Base App Layout styles */
@@ -192,6 +230,47 @@ body {
 .profile-role {
   font-size: 0.75rem;
   opacity: 0.7;
+}
+
+.capitalize-text {
+  text-transform: capitalize;
+}
+
+.btn-logout {
+  background-color: transparent;
+  color: #e53e3e;
+  border: 1px solid #fed7d7;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-left: 0.5rem;
+}
+
+.btn-logout:hover {
+  background-color: #fff5f5;
+  border-color: #f56565;
+}
+
+/* Standalone Auth Screen Wrapper */
+.auth-layout-wrapper {
+  background-color: #f7fafc;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.auth-header-standalone {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.auth-header-standalone .header-logo {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #2b6cb0;
 }
 
 /* Metrics bar styles */
@@ -320,6 +399,4 @@ body {
   color: #ffffff;
   background-color: transparent;
 }
-
 </style>
-

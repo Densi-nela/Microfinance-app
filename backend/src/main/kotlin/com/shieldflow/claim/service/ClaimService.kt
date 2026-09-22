@@ -13,12 +13,17 @@ import kotlin.random.Random
 class ClaimService(private val claimRepository: ClaimRepository) {
 
     @Transactional(readOnly = true)
-    fun getAllClaims(): List<ClaimResponse> {
-        return claimRepository.findAllByOrderBySubmittedAtDesc().map { toResponseDto(it) }
+    fun getClaimsForUser(userId: Long, role: String): List<ClaimResponse> {
+        val claims = if (role.uppercase() == "ADMIN") {
+            claimRepository.findAllByOrderBySubmittedAtDesc()
+        } else {
+            claimRepository.findAllByUserIdOrUserIdIsNullOrderBySubmittedAtDesc(userId)
+        }
+        return claims.map { toResponseDto(it) }
     }
 
     @Transactional
-    fun createClaim(request: ClaimRequest): ClaimResponse {
+    fun createClaim(request: ClaimRequest, userId: Long?): ClaimResponse {
         val reference = generateUniqueReference(request.claimType)
         
         // Extract type-specific details to map into single DB column
@@ -31,6 +36,7 @@ class ClaimService(private val claimRepository: ClaimRepository) {
 
         val claim = Claim(
             reference = reference,
+            userId = userId,
             policyNumber = request.policyNumber,
             claimType = request.claimType,
             claimantName = request.claimantName,
@@ -45,6 +51,20 @@ class ClaimService(private val claimRepository: ClaimRepository) {
 
         val savedClaim = claimRepository.save(claim)
         return toResponseDto(savedClaim)
+    }
+
+    @Transactional
+    fun updateClaimStatus(claimId: Long, newStatus: String): ClaimResponse? {
+        val claim = claimRepository.findById(claimId).orElse(null) ?: return null
+        
+        // Validate status type
+        val status = newStatus.lowercase().trim()
+        if (status in listOf("pending_review", "under_review", "approved", "paid")) {
+            claim.status = status
+            val savedClaim = claimRepository.save(claim)
+            return toResponseDto(savedClaim)
+        }
+        return null
     }
 
     private fun generateUniqueReference(claimType: String): String {

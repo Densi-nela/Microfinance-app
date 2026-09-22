@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository
 interface ClaimRepository : JpaRepository<Claim, Long> {
     fun findByReference(reference: String): Claim?
     fun findAllByOrderBySubmittedAtDesc(): List<Claim>
+    fun findAllByUserIdOrUserIdIsNullOrderBySubmittedAtDesc(userId: Long): List<Claim>
 }

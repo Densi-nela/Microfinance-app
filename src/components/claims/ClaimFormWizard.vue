@@ -118,6 +118,7 @@ import StepPolicyInfo from './StepPolicyInfo.vue';
 import StepClaimDetails from './StepClaimDetails.vue';
 import StepReviewSubmit from './StepReviewSubmit.vue';
 import ClaimHistory from './ClaimHistory.vue';
+import { authStore } from './authStore';
 
 // Views state
 const activeView = ref('form');
@@ -181,6 +182,12 @@ const submittedClaimsList = ref([]);
 onMounted(() => {
   loadSubmittedClaims();
   loadDraft();
+  
+  // Auto-populate logged-in user details if not already loaded from draft
+  if (authStore.isAuthenticated.value && !formData.claimantName) {
+    formData.claimantName = authStore.currentUser.value.fullName || '';
+    formData.claimantEmail = authStore.currentUser.value.email || '';
+  }
 });
 
 // Dynamic API Base URL detection
@@ -190,7 +197,9 @@ const API_BASE = import.meta.env.PROD
 
 const loadSubmittedClaims = async () => {
   try {
-    const res = await fetch(`${API_BASE}/api/claims`);
+    const res = await fetch(`${API_BASE}/api/claims`, {
+      headers: authStore.getAuthHeader()
+    });
     if (!res.ok) throw new Error('API failed');
     const data = await res.json();
     submittedClaimsList.value = data;
@@ -474,10 +483,11 @@ const submitClaim = async () => {
   };
 
   try {
-    const res = await fetch('http://localhost:8080/api/claims', {
+    const res = await fetch(`${API_BASE}/api/claims`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...authStore.getAuthHeader()
       },
       body: JSON.stringify(payload)
     });
