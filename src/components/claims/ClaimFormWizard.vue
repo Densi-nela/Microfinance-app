@@ -183,9 +183,14 @@ onMounted(() => {
   loadDraft();
 });
 
+// Dynamic API Base URL detection
+const API_BASE = import.meta.env.PROD 
+  ? 'https://shieldflow-portal.onrender.com' // Replace with your actual Render URL!
+  : 'http://localhost:8080';
+
 const loadSubmittedClaims = async () => {
   try {
-    const res = await fetch('http://localhost:8080/api/claims');
+    const res = await fetch(`${API_BASE}/api/claims`);
     if (!res.ok) throw new Error('API failed');
     const data = await res.json();
     submittedClaimsList.value = data;
