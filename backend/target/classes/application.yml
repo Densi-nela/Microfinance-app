@@ -5,7 +5,7 @@ spring:
   application:
     name: shieldflow-backend
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:shieldflow;DB_CLOSE_DELAY=-1}
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:file:./data/shieldflow;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE}
     username: ${SPRING_DATASOURCE_USERNAME:sa}
     password: ${SPRING_DATASOURCE_PASSWORD:password}
     driver-class-name: org.h2.Driver
